@@ -11,11 +11,13 @@ import org.aryan.articlemsbackend.exception.ResourceNotFoundException;
 import org.aryan.articlemsbackend.repo.ArticleRepository;
 import org.aryan.articlemsbackend.repo.UserRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -68,11 +70,17 @@ public class ArticleService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Page<Article> articles = articleRepository.findAll(pageable);
-        return articles
+        Page<Article> allArticles = articleRepository.findAll(pageable);
+
+        // Filter by user manually
+        List<ArticleResponse> userArticles = allArticles.stream()
                 .filter(article -> article.getAuthor().getId().equals(user.getId()))
-                .map(this::mapToResponse);
+                .map(this::mapToResponse)
+                .toList();
+
+        return new PageImpl<>(userArticles, pageable, userArticles.size());
     }
+
 
 
     @Transactional

@@ -143,7 +143,3 @@ public class User implements UserDetails {
     }
 }
 
-enum Role {
-    USER,
-    ADMIN
-}

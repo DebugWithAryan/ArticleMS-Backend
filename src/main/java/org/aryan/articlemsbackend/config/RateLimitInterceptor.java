@@ -21,7 +21,6 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         String clientIp = getClientIP(request);
         String path = request.getRequestURI();
 
-        // Apply stricter rate limit for auth endpoints
         if (path.startsWith("/api/auth/login") ||
                 path.startsWith("/api/auth/register")) {
             rateLimitService.checkAuthRateLimit(clientIp);

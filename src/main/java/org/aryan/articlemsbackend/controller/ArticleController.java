@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.aryan.articlemsbackend.dto.ArticleRequest;
 import org.aryan.articlemsbackend.dto.ArticleResponse;
 import org.aryan.articlemsbackend.dto.MessageResponse;
+import org.aryan.articlemsbackend.service.ArticleService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;

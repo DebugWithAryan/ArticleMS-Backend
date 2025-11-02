@@ -3,6 +3,7 @@ package org.aryan.articlemsbackend.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.aryan.articlemsbackend.dto.*;
+import org.aryan.articlemsbackend.service.AuthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -15,10 +16,7 @@ public class AuthController {
 
     private final AuthService authService;
 
-    /**
-     * Register a new user
-     * POST /api/auth/register
-     */
+
     @PostMapping("/register")
     public ResponseEntity<MessageResponse> register(
             @Valid @RequestBody RegisterRequest request) {
@@ -26,20 +24,14 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    /**
-     * Verify email with token
-     * GET /api/auth/verify-email?token=xxx
-     */
+
     @GetMapping("/verify-email")
     public ResponseEntity<AuthResponse> verifyEmail(@RequestParam String token) {
         AuthResponse response = authService.verifyEmail(token);
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Resend verification email
-     * POST /api/auth/resend-verification
-     */
+
     @PostMapping("/resend-verification")
     public ResponseEntity<MessageResponse> resendVerification(
             @Valid @RequestBody ResendVerificationRequest request) {
@@ -47,10 +39,7 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Login user
-     * POST /api/auth/login
-     */
+
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
             @Valid @RequestBody LoginRequest request) {
@@ -58,10 +47,7 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Refresh access token
-     * POST /api/auth/refresh
-     */
+
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refreshToken(
             @Valid @RequestBody RefreshTokenRequest request) {
@@ -69,10 +55,7 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Request password reset
-     * POST /api/auth/forgot-password
-     */
+
     @PostMapping("/forgot-password")
     public ResponseEntity<MessageResponse> forgotPassword(
             @Valid @RequestBody PasswordResetRequest request) {
@@ -80,10 +63,7 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Reset password with token
-     * POST /api/auth/reset-password
-     */
+
     @PostMapping("/reset-password")
     public ResponseEntity<MessageResponse> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request) {
@@ -94,10 +74,7 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Logout user
-     * POST /api/auth/logout
-     */
+
     @PostMapping("/logout")
     public ResponseEntity<MessageResponse> logout(Authentication authentication) {
         String email = authentication.getName();
