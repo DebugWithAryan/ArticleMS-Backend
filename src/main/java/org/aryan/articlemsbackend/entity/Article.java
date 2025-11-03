@@ -40,9 +40,11 @@ public class Article {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private ArticleStatus status = ArticleStatus.PUBLISHED;
 
     @Column(name = "view_count")
+    @Builder.Default
     private Long viewCount = 0L;
 
     @Column(nullable = false, updatable = false)
@@ -54,6 +56,13 @@ public class Article {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        // Ensure defaults are set if null
+        if (status == null) {
+            status = ArticleStatus.PUBLISHED;
+        }
+        if (viewCount == null) {
+            viewCount = 0L;
+        }
     }
 
     @PreUpdate
@@ -65,4 +74,3 @@ public class Article {
         this.viewCount++;
     }
 }
-

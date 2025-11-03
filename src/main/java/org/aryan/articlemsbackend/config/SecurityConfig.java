@@ -41,7 +41,8 @@ public class SecurityConfig {
                                 "/api/auth/verify-email",
                                 "/api/auth/resend-verification",
                                 "/api/auth/forgot-password",
-                                "/api/auth/reset-password"
+                                "/api/auth/reset-password",
+                                "/api/health/**"  // Add health check endpoints
                         ).permitAll()
                         // Protected endpoints
                         .anyRequest().authenticated()
