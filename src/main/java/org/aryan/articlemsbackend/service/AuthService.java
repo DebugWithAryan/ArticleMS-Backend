@@ -142,63 +142,62 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse login(LoginRequest request) {
-        log.info("Login attempt for user: {}", request.getEmail());
+public AuthResponse login(LoginRequest request) {
+    log.info("Login attempt for user: {}", request.getEmail());
 
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+    User user = userRepository.findByEmail(request.getEmail())
+            .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
-        if (!user.isAccountNonLocked()) {
-            log.warn("Login failed: Account locked - {}", user.getEmail());
-            throw new AccountLockedException(
-                    "Your account is locked due to multiple failed login attempts. " +
-                            "Please try again after 24 hours."
-            );
-        }
-
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            request.getEmail(),
-                            request.getPassword()
-                    )
-            );
-
-            if (!user.isEmailVerified()) {
-                log.warn("Login failed: Email not verified - {}", user.getEmail());
-                throw new EmailNotVerifiedException(
-                        "Please verify your email address before logging in"
-                );
-            }
-
-            user.resetFailedAttempts();
-            user.setLastLogin(LocalDateTime.now());
-            userRepository.save(user);
-
-            refreshTokenRepository.deleteByUser(user);
-
-            var accessToken = jwtService.generateAccessToken(user);
-            var refreshToken = createRefreshToken(user);
-
-            log.info("User logged in successfully: {}", user.getEmail());
-
-            return AuthResponse.builder()
-                    .accessToken(accessToken)
-                    .refreshToken(refreshToken.getToken())
-                    .userId(user.getId())
-                    .email(user.getEmail())
-                    .name(user.getName())
-                    .build();
-
-        } catch (Exception e) {
-            // Increment failed attempts
-            user.incrementFailedAttempts();
-            userRepository.save(user);
-            log.warn("Failed login attempt for user: {}", user.getEmail());
-            throw new UnauthorizedException("Invalid email or password");
-        }
+    if (!user.isAccountNonLocked()) {
+        log.warn("Login failed: Account locked - {}", user.getEmail());
+        throw new AccountLockedException(
+                "Your account is locked due to multiple failed login attempts. " +
+                        "Please try again after 24 hours."
+        );
     }
 
+    try {
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getEmail(),
+                        request.getPassword()
+                )
+        );
+
+        if (!user.isEmailVerified()) {
+            log.warn("Login failed: Email not verified - {}", user.getEmail());
+            throw new EmailNotVerifiedException(
+                    "Please verify your email address before logging in"
+            );
+        }
+
+        user.resetFailedAttempts();
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
+
+        refreshTokenRepository.deleteByUser(user);
+        refreshTokenRepository.flush();  
+
+        var accessToken = jwtService.generateAccessToken(user);
+        var refreshToken = createRefreshToken(user);
+
+        log.info("User logged in successfully: {}", user.getEmail());
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken.getToken())
+                .userId(user.getId())
+                .email(user.getEmail())
+                .name(user.getName())
+                .build();
+
+    } catch (Exception e) {
+        user.incrementFailedAttempts();
+        userRepository.save(user);
+        log.warn("Failed login attempt for user: {}", user.getEmail());
+        throw new UnauthorizedException("Invalid email or password");
+    }
+}
     @Transactional
     public AuthResponse refreshToken(RefreshTokenRequest request) {
         log.info("Attempting to refresh token");
