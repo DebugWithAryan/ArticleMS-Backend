@@ -1,11 +1,8 @@
 package org.aryan.articlemsbackend.controller;
 
-
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,49 +12,40 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/health")
-@RequiredArgsConstructor
 @Slf4j
 public class EmailHealthController {
 
-    private final JavaMailSender mailSender;
-
-    @Value("${spring.mail.host:not-configured}")
-    private String mailHost;
-
-    @Value("${spring.mail.port:0}")
-    private int mailPort;
-
-    @Value("${spring.mail.username:not-configured}")
-    private String mailUsername;
-
-    @Value("${app.email.enabled:false}")
-    private boolean emailEnabled;
+    @Value("${sendgrid.api.key:not-configured}")
+    private String sendGridApiKey;
 
     @Value("${app.email.from:not-configured}")
     private String emailFrom;
 
+    @Value("${app.email.enabled:false}")
+    private boolean emailEnabled;
+
+    @Value("${app.frontend.url:not-configured}")
+    private String frontendUrl;
 
     @GetMapping("/email")
     public ResponseEntity<Map<String, Object>> checkEmailHealth() {
         Map<String, Object> health = new HashMap<>();
 
-        health.put("provider", "SendGrid");
+        health.put("provider", "SendGrid Web API");
         health.put("enabled", emailEnabled);
-        health.put("host", mailHost);
-        health.put("port", mailPort);
-        health.put("username", mailUsername); // Will show "apikey"
+        health.put("method", "HTTPS (Port 443)");
         health.put("from", maskEmail(emailFrom));
+        health.put("frontendUrl", frontendUrl);
 
         if (emailEnabled) {
-            health.put("status", "ACTIVE");
-            health.put("message", "SendGrid email service is configured and active");
-
-            if (mailHost.equals("smtp.sendgrid.net")) {
-                health.put("sendgrid", "Connected");
-                health.put("smtpStatus", "Ready");
+            if (sendGridApiKey != null && sendGridApiKey.startsWith("SG.")) {
+                health.put("status", "ACTIVE");
+                health.put("apiKeySet", true);
+                health.put("message", "SendGrid Web API is configured and ready");
             } else {
                 health.put("status", "MISCONFIGURED");
-                health.put("message", "SMTP host is not SendGrid");
+                health.put("apiKeySet", false);
+                health.put("message", "SendGrid API key is missing or invalid");
             }
         } else {
             health.put("status", "DISABLED");
@@ -81,4 +69,3 @@ public class EmailHealthController {
         return "***";
     }
 }
-
