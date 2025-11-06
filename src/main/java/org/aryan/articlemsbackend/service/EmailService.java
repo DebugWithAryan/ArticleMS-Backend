@@ -54,7 +54,7 @@ public class EmailService {
         }
 
         try {
-            String verificationLink = frontendUrl + "/verify-email?token=" + token;
+            String verificationLink = frontendUrl + "/api/auth/verify-email?token=" + token;
 
             Map<String, Object> variables = Map.of(
                     "name", name,
