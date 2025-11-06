@@ -921,7 +921,7 @@ This project is licensed under the MIT License.
 
 **Developer:** Aryan Jaiswal
 **Email:** aryanjai.works@gmail.com 
-**Project Link:** [https://github.com/yourusername/ArticleMS-Backend](https://github.com/yourusername/ArticleMS-Backend)
+**Project Link:** [https://github.com/yourusername/ArticleMS-Backend](https://github.com/DebugWithAryan/ArticleMS-Backend)
 
 ---
 
