@@ -1,15 +1,12 @@
 package org.aryan.articlemsbackend.service;
 
-
-
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
+import com.sendgrid.*;
+import com.sendgrid.helpers.mail.Mail;
+import com.sendgrid.helpers.mail.objects.Content;
+import com.sendgrid.helpers.mail.objects.Email;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.MailException;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.annotation.Async;
@@ -17,8 +14,7 @@ import org.springframework.stereotype.Service;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.io.IOException;
 import java.util.Map;
 
 @Service
@@ -26,8 +22,10 @@ import java.util.Map;
 @Slf4j
 public class EmailService {
 
-    private final JavaMailSender mailSender;
     private final SpringTemplateEngine templateEngine;
+
+    @Value("${sendgrid.api.key}")
+    private String sendGridApiKey;
 
     @Value("${app.email.from}")
     private String fromEmail;
@@ -41,12 +39,9 @@ public class EmailService {
     @Value("${spring.application.name:Article Management System}")
     private String appName;
 
-    /**
-     * Send verification email with retry mechanism
-     */
     @Async
     @Retryable(
-            retryFor = {MailException.class, MessagingException.class},
+            retryFor = {IOException.class},
             maxAttempts = 3,
             backoff = @Backoff(delay = 2000, multiplier = 2)
     )
@@ -54,6 +49,7 @@ public class EmailService {
         log.info("📧 Preparing to send verification email to: {}", to);
 
         if (!emailEnabled) {
+            log.warn("Email service is disabled");
             return;
         }
 
@@ -67,25 +63,25 @@ public class EmailService {
                     "token", token
             );
 
-            sendHtmlEmail(
+            String htmlContent = processTemplate("email-verification", variables);
+
+            sendEmail(
                     to,
                     "Verify Your Email - " + appName,
-                    "email-verification",
-                    variables
+                    htmlContent
             );
 
             log.info("✅ Verification email sent successfully to: {}", to);
 
         } catch (Exception e) {
-            log.error("❌ Failed to send verification email to: {} - Error: {}", to, e.getMessage());
+            log.error("❌ Failed to send verification email to: {}", to, e);
             throw new RuntimeException("Failed to send verification email", e);
         }
     }
 
-
     @Async
     @Retryable(
-            retryFor = {MailException.class, MessagingException.class},
+            retryFor = {IOException.class},
             maxAttempts = 3,
             backoff = @Backoff(delay = 2000, multiplier = 2)
     )
@@ -93,7 +89,7 @@ public class EmailService {
         log.info("📧 Preparing to send welcome email to: {}", to);
 
         if (!emailEnabled) {
-            log.info("Email disabled. Welcome email would be sent to: {}", to);
+            log.warn("Email service is disabled");
             return;
         }
 
@@ -106,25 +102,24 @@ public class EmailService {
                     "appName", appName
             );
 
-            sendHtmlEmail(
+            String htmlContent = processTemplate("welcome-email", variables);
+
+            sendEmail(
                     to,
                     "Welcome to " + appName,
-                    "welcome-email",
-                    variables
+                    htmlContent
             );
 
             log.info("✅ Welcome email sent successfully to: {}", to);
 
         } catch (Exception e) {
             log.error("❌ Failed to send welcome email to: {}", to, e);
-            // Don't throw exception for welcome emails - it's not critical
         }
     }
 
-
     @Async
     @Retryable(
-            retryFor = {MailException.class, MessagingException.class},
+            retryFor = {IOException.class},
             maxAttempts = 3,
             backoff = @Backoff(delay = 2000, multiplier = 2)
     )
@@ -132,6 +127,7 @@ public class EmailService {
         log.info("📧 Preparing to send password reset email to: {}", to);
 
         if (!emailEnabled) {
+            log.warn("Email service is disabled");
             return;
         }
 
@@ -145,11 +141,12 @@ public class EmailService {
                     "token", token
             );
 
-            sendHtmlEmail(
+            String htmlContent = processTemplate("password-reset", variables);
+
+            sendEmail(
                     to,
                     "Reset Your Password - " + appName,
-                    "password-reset",
-                    variables
+                    htmlContent
             );
 
             log.info("✅ Password reset email sent successfully to: {}", to);
@@ -160,34 +157,43 @@ public class EmailService {
         }
     }
 
+    private void sendEmail(String to, String subject, String htmlContent) throws IOException {
+        log.info("Sending email via SendGrid Web API (HTTPS)...");
 
-    private void sendHtmlEmail(String to, String subject, String templateName,
-                               Map<String, Object> variables) throws MessagingException {
+        Email from = new Email(fromEmail);
+        Email toEmail = new Email(to);
+        Content content = new Content("text/html", htmlContent);
+        Mail mail = new Mail(from, subject, toEmail, content);
 
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+        SendGrid sg = new SendGrid(sendGridApiKey);
+        Request request = new Request();
 
-        // Set email headers
-        helper.setFrom(fromEmail);
-        helper.setTo(to);
-        helper.setSubject(subject);
+        try {
+            request.setMethod(Method.POST);
+            request.setEndpoint("mail/send");
+            request.setBody(mail.build());
 
-        // Add custom headers for SendGrid
-        message.addHeader("X-Priority", "1");
-        message.addHeader("Importance", "High");
+            Response response = sg.api(request);
 
-        // Process Thymeleaf template
-        Context context = new Context();
-        context.setVariables(variables);
-        String htmlContent = templateEngine.process(templateName, context);
+            log.info("SendGrid API Response - Status: {}, Body: {}",
+                    response.getStatusCode(), response.getBody());
 
-        helper.setText(htmlContent, true);
+            if (response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+                log.info("✅ Email sent successfully via SendGrid Web API");
+            } else {
+                log.error("❌ SendGrid API error: {}", response.getBody());
+                throw new IOException("SendGrid API returned error: " + response.getStatusCode());
+            }
 
-        // Send email through SendGrid SMTP
-        mailSender.send(message);
-
-        log.debug("Email sent via SendGrid SMTP to: {}", to);
+        } catch (IOException e) {
+            log.error("❌ Failed to send email via SendGrid Web API: {}", e.getMessage());
+            throw e;
+        }
     }
 
-
+    private String processTemplate(String templateName, Map<String, Object> variables) {
+        Context context = new Context();
+        context.setVariables(variables);
+        return templateEngine.process(templateName, context);
+    }
 }
